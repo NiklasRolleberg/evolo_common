@@ -34,6 +34,8 @@ class MinimalPublisher(Node):
         else: 
             self.i = 0
 
+        self.publisher_.publish(msg)
+
         print("Published order")
         self.i += 1
 
