@@ -2,7 +2,7 @@
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Vector3
-from cam_gimbal_msgs.msg import gcu_data
+from cam_gimbal_msgs.msg import Gcudata
 
 import socket
 import binascii
@@ -23,7 +23,7 @@ class GimbalReadAndPublish(Node):
         super().__init__('read_and_publish')
 
         # Create publisher
-        self.publisher_ = self.create_publisher(Vector3, 'gimbal_euler', 10)
+        self.publisher_ = self.create_publisher(Gcudata, 'gimbal_euler', 10)
         timer_period = 1/50  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
@@ -32,33 +32,33 @@ class GimbalReadAndPublish(Node):
         self.subscription # prevent unused variable warning
 
     def timer_callback(self):
-        msg = gcu_data()
+        msg = Gcudata()
         data_from_camera = send_null_command()
 
         # Store operating mode
         extracted_operating_mode = struct.unpack("B", data_from_camera[5:6])
-        gcu_data.operating_mode = extracted_operating_mode
+        msg.operating_mode = extracted_operating_mode
 
         # Store relative angle and convert to Evolos Coordinate system
         extracted_relative_angle = struct.unpack("<hhh",data_from_camera[12:18])
-        gcu_data.relative_pitch = extracted_relative_angle[1] / 100.0
-        gcu_data.relative_roll = extracted_relative_angle[0] / 100.0
-        gcu_data.relative_yaw = extracted_relative_angle[2] / -100.0
+        msg.relative_pitch = extracted_relative_angle[1] / 100.0
+        msg.relative_roll = extracted_relative_angle[0] / 100.0
+        msg.relative_yaw = extracted_relative_angle[2] / -100.0
 
         # Store absolute angle 
         extracted_absolute_angle = struct.unpack("<hhh",data_from_camera[18:24])
-        gcu_data.absolute_pitch = extracted_absolute_angle[0] / 100.0
-        gcu_data.absolute_roll = extracted_absolute_angle[1] / 100.0
-        gcu_data.absolute_yaw = extracted_absolute_angle[2] / 100.0
+        msg.absolute_pitch = extracted_absolute_angle[0] / 100.0
+        msg.absolute_roll = extracted_absolute_angle[1] / 100.0
+        msg.absolute_yaw = extracted_absolute_angle[2] / 100.0
 
         # Store error code
         extracted_error_code = struct.unpack("<h", data_from_camera[41:43])
-        gcu_data.operating_mode = extracted_operating_mode
+        msg.operating_mode = extracted_operating_mode
 
         # Store camera status
         extracted_camera_status = struct.unpack("<h", data_from_camera[64:66])
-        gcu_data.osd = bool(getBit(extracted_camera_status, 13)) # B13: 0 - OSD off, 1 - OSD on
-        gcu_data.recording = bool(getBit(extracted_camera_status, 4)) # B4: 0 - not recording, 1 - recording
+        msg.osd = bool(getBit(extracted_camera_status, 13)) # B13: 0 - OSD off, 1 - OSD on
+        msg.recording = bool(getBit(extracted_camera_status, 4)) # B4: 0 - not recording, 1 - recording
 
         print(msg)
         self.publisher_.publish(msg)

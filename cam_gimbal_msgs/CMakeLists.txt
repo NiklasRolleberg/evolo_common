@@ -16,8 +16,7 @@ find_package(std_msgs REQUIRED)
 
 # Add messages here!!
 rosidl_generate_interfaces(${PROJECT_NAME}
-  "msg/example.msg"
-  "msg/gcu_data.msg"
+  "msg/Gcudata.msg"
   DEPENDENCIES geometry_msgs sensor_msgs std_msgs
  )
 
