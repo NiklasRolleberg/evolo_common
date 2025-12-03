@@ -5,13 +5,16 @@
 #include <chrono>
 #include <iostream>
 
-#include <gtsam/geometry/Rot3.h>
-#include <gtsam/geometry/Quaternion.h>
+//#include <gtsam/geometry/Rot3.h>
+//#include <gtsam/geometry/Quaternion.h>
+#include <Eigen/Dense>
+#include <Eigen/Geometry>
 
 #include "rclcpp/rclcpp.hpp"
 #include "tf2/exceptions.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_broadcaster.h"
 
 #include "std_msgs/msg/header.hpp"
 #include "nav_msgs/msg/odometry.hpp"
@@ -27,9 +30,9 @@ using namespace std::chrono_literals;
 
 class SbgToOdom : public rclcpp::Node {
  public:
-  SbgToOdom() : Node("sbg_nav_to_lolo_odom") {
-    w_target_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
-        "lolo/proxops/target_odom", 10);
+  SbgToOdom() : Node("sbg_nav_to_odom") {
+    odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
+        "evolo/smarc/odom", 10);
 
     sbg_nav_sub_ = this->create_subscription<sbg_driver::msg::SbgEkfNav>(
         "/sbg/ekf_nav", 10,
@@ -41,19 +44,23 @@ class SbgToOdom : public rclcpp::Node {
 
     // Timer for checking for and publishing updates..
     target_timer_ = this->create_wall_timer(
-        100ms, std::bind(&SbgToOdom::target_timer_callback, this));
+        100ms, std::bind(&SbgToOdom::odom_timer_callback, this));
 
-    // tf listener for utm->lolo/odom offset.
+    // tf listener for utm->evolo/odom offset.
     tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
     tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+
+    // Initialize the transform broadcaster
+    tf_broadcaster_ =
+      std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   }
 
  public:
   double x_;         // X position in UTM.
   double y_;         // Y position in UTM.
-  double x_utm_offset_;  // X offset from utm->lolo/odom.
-  double y_utm_offset_;  // Y offset from utm->lolo/odom.
+  double x_utm_offset_;  // X offset from utm->evolo/odom.
+  double y_utm_offset_;  // Y offset from utm->evolo/odom.
   bool utm_init_ = false;
 
   double x_vel;  // SBG's X velocity.
@@ -68,12 +75,15 @@ class SbgToOdom : public rclcpp::Node {
  private:
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_{nullptr};
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-  // TODO: NED->ENU rotation.
-  const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
+    // TODO: NED->ENU rotation.
+    //const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
+    Eigen::Matrix3d R_NED_to_ENU = (Eigen::Matrix3d() << 0, 1, 0,
+                                                         1, 0, 0,
+                                                         0, 0, -1).finished();
 
-
-  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr w_target_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfNav>::SharedPtr sbg_nav_sub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfQuat>::SharedPtr sbg_quat_sub_;
 
@@ -109,30 +119,61 @@ class SbgToOdom : public rclcpp::Node {
     double qy = msg->quaternion.y;
     double qz = msg->quaternion.z;
     double qw = msg->quaternion.w;
-    const gtsam::Rot3 ned_to_sbg = gtsam::Rot3::Quaternion(qw, qx, qy, qz);
-    const gtsam::Rot3 enu_to_sbg = ned_to_enu_.inverse() * ned_to_sbg;
-    const gtsam::Quaternion quat = enu_to_sbg.toQuaternion();
 
-    this->quat_msg.x = quat.x();
-    this->quat_msg.y = quat.y();
-    this->quat_msg.z = quat.z();
-    this->quat_msg.w = quat.w();
+    //std::cout << "SBG quat received "<< std::endl;
+    
+    // TODO: NED->ENU rotation.
+    //const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
+
+
+    // Convert quaternion to rotation matrix
+    Eigen::Quaterniond ned_to_sbg(qw, qx, qy, qz);
+    Eigen::Matrix3d rotationMatrix = ned_to_sbg.toRotationMatrix();
+
+    // Apply the transformation matrix to the rotation matrix
+    Eigen::Matrix3d newRotationMatrix = R_NED_to_ENU.inverse() * rotationMatrix;// * R_NED_to_ENU.transpose();
+
+    // Convert back to a quaternion in the ENU frame
+    Eigen::Quaterniond q_ENU(newRotationMatrix);
+
+    //for reference
+    //const gtsam::Rot3 ned_to_sbg = gtsam::Rot3::Quaternion(qw, qx, qy, qz);
+    //const gtsam::Rot3 enu_to_sbg = ned_to_enu_.inverse() * ned_to_sbg;
+    //const gtsam::Quaternion quat = enu_to_sbg.toQuaternion();
+    //this->quat_msg.x = enu_to_sbg.x();
+    //this->quat_msg.y = enu_to_sbg.y();
+    //this->quat_msg.z = enu_to_sbg.z();
+    //this->quat_msg.w = enu_to_sbg.w();
+
+    //this->quat_msg.x = q_ENU.x();
+    //this->quat_msg.y = q_ENU.y();
+    //this->quat_msg.z = q_ENU.z();
+    //this->quat_msg.w = q_ENU.w();
+
+    this->quat_msg.x= msg->quaternion.x;
+    this->quat_msg.y= msg->quaternion.y;
+    this->quat_msg.z= msg->quaternion.z;
+    this->quat_msg.w= msg->quaternion.w;
+
+    //TODO velocities
+
+
   }
 
   // -----------------------------------------------------------------------
 
   void getUtmOffset() {
-    geometry_msgs::msg::TransformStamped utm_to_lolo_odom;
+    geometry_msgs::msg::TransformStamped utm_to_odom;
     try {
-      utm_to_lolo_odom =
-          tf_buffer_->lookupTransform("lolo/odom", "utm", tf2::TimePointZero);
+      utm_to_odom =
+          tf_buffer_->lookupTransform("utm", "evolo/odom", tf2::TimePointZero);
     } catch (const tf2::TransformException &ex) {
       RCLCPP_INFO(this->get_logger(), "Could not transform %s to %s: %s",
-                  "utm", "lolo/odom", ex.what());
+                  "utm", "evolo/odom", ex.what());
       return;
     }
-    x_utm_offset_ = utm_to_lolo_odom.transform.translation.x;
-    y_utm_offset_ = utm_to_lolo_odom.transform.translation.y;
+    x_utm_offset_ = utm_to_odom.transform.translation.x;
+    y_utm_offset_ = utm_to_odom.transform.translation.y;
     utm_init_ = true;
   }
 
@@ -140,19 +181,41 @@ class SbgToOdom : public rclcpp::Node {
   nav_msgs::msg::Odometry OdomToMessage() {
     nav_msgs::msg::Odometry msg;
     msg.header = header_msg;
-    msg.header.frame_id = "/lolo/odom";
-    msg.child_frame_id = "target/base_link";
+    msg.header.frame_id = "/evolo/odom";
+    msg.child_frame_id = "evolo/base_link";
     msg.pose.pose.position = pos_msg;
     msg.pose.pose.orientation = quat_msg;
     return msg;
   }
 
   // -----------------------------------------------------------------------
-  void target_timer_callback() {
+  void odom_timer_callback() {
     if (!utm_init_) {
       getUtmOffset();
     }
-    w_target_pub_->publish(OdomToMessage());
+    odom_pub_->publish(OdomToMessage());
+
+    //Broadcast base_link transform
+    geometry_msgs::msg::TransformStamped t;
+    // Read message content and assign it to
+    // corresponding tf variables
+    t.header.stamp = header_msg.stamp;
+    t.header.frame_id = "evolo/odom";
+    t.child_frame_id = "evolo/base_link";
+
+    // position coordinates
+    t.transform.translation.x = pos_msg.x;
+    t.transform.translation.y = pos_msg.y;
+    t.transform.translation.z = pos_msg.z;
+
+    //Orientation
+    t.transform.rotation.x = quat_msg.x;
+    t.transform.rotation.y = quat_msg.y;
+    t.transform.rotation.z = quat_msg.z;
+    t.transform.rotation.w = quat_msg.w;
+
+    // Send the transformation
+    tf_broadcaster_->sendTransform(t);
   }
 };
 

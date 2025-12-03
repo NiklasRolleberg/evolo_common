@@ -5,7 +5,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-find_package(GTSAM REQUIRED)
+# find_package(GTSAM REQUIRED)
 find_package(PkgConfig)
 pkg_search_module(Eigen3 REQUIRED eigen3)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};/usr/share/cmake/geographiclib")
@@ -21,9 +21,9 @@ find_package(sbg_driver REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-add_executable(sbg_nav_to_lolo_odom src/sbg_nav_to_lolo_odom.cpp)
-target_include_directories(sbg_nav_to_lolo_odom PUBLIC ./include/${GeographicLib_INCLUDE_DIRS})
-target_link_libraries(sbg_nav_to_lolo_odom
+add_executable(sbg_nav_to_evolo_odom src/sbg_nav_to_evolo_odom.cpp)
+target_include_directories(sbg_nav_to_evolo_odom PUBLIC ./include/${GeographicLib_INCLUDE_DIRS})
+target_link_libraries(sbg_nav_to_evolo_odom
   rclcpp::rclcpp
   ${nav_msgs_TARGETS}
   ${geometry_msgs_TARGETS}
@@ -32,11 +32,11 @@ target_link_libraries(sbg_nav_to_lolo_odom
   ${tf2_TARGETS}
   ${tf2_ros_TARGETS}
   ${GeographicLib_LIBRARIES}
-  gtsam
+  Eigen3::Eigen
   )
 
 install(TARGETS
-  sbg_nav_to_lolo_odom
+  sbg_nav_to_evolo_odom
   DESTINATION lib/${PROJECT_NAME}
   )
 
