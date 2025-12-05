@@ -166,6 +166,18 @@ def send_euler_command(roll: int, pitch: int, yaw: int):
         sock.sendall(packet)
         sock.recv(1024)
 
+def send_toggle_record_command():
+    global sock
+    if sock:
+        send_null_command()
+        packet = build_packet(
+            order=0x21,
+            param_bytes=b"/x01",
+            ctrl_valid=True,
+        )
+        sock.sendall(packet)
+        return sock.recv(1024)
+
 
 
 def main(args=None):
