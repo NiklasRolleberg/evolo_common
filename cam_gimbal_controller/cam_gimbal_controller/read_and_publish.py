@@ -23,7 +23,7 @@ class GimbalReadAndPublish(Node):
         super().__init__('read_and_publish')
 
         # Create publisher
-        self.publisher_ = self.create_publisher(Gcudata, 'gimbal_euler', 10)
+        self.publisher_ = self.create_publisher(Gcudata, 'cam_gcu_data', 10)
         timer_period = 1/50  # seconds
         self.timer = self.create_timer(timer_period, self.timer_callback)
 
@@ -37,7 +37,7 @@ class GimbalReadAndPublish(Node):
 
         # Store operating mode
         extracted_operating_mode = struct.unpack("B", data_from_camera[5:6])
-        msg.operating_mode = extracted_operating_mode
+        msg.operating_mode = extracted_operating_mode[0]
 
         # Store relative angle and convert to Evolos Coordinate system
         extracted_relative_angle = struct.unpack("<hhh",data_from_camera[12:18])
@@ -53,12 +53,12 @@ class GimbalReadAndPublish(Node):
 
         # Store error code
         extracted_error_code = struct.unpack("<h", data_from_camera[41:43])
-        msg.operating_mode = extracted_operating_mode
+        msg.error_code = extracted_error_code[0]
 
         # Store camera status
         extracted_camera_status = struct.unpack("<h", data_from_camera[64:66])
-        msg.osd = bool(getBit(extracted_camera_status, 13)) # B13: 0 - OSD off, 1 - OSD on
-        msg.recording = bool(getBit(extracted_camera_status, 4)) # B4: 0 - not recording, 1 - recording
+        msg.osd = bool(getBit(extracted_camera_status[0], 13)) # B13: 0 - OSD off, 1 - OSD on
+        msg.recording = bool(getBit(extracted_camera_status[0], 4)) # B4: 0 - not recording, 1 - recording
 
         print(msg)
         self.publisher_.publish(msg)
