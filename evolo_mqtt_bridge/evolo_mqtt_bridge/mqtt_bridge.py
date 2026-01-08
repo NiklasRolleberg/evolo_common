@@ -39,10 +39,10 @@ class Mqtt_bridge(Node):
         self.mqtt_client = None
 
         # Create ROS publisher
-        self.publisher_ = self.create_publisher(String, evoloTopics.EVOLO_MQTT_RECEIVE, 10)
+        self.publisher_ = self.create_publisher(String, evoloTopics.EVOLO_CAPTAIN_FROM, 10)
         
         # Create ROS subscriber
-        self.subscription = self.create_subscription(String,evoloTopics.EVOLO_MQTT_SEND, self.ros_callback,10)
+        self.subscription = self.create_subscription(String,evoloTopics.EVOLO_CAPTAIN_TO, self.ros_callback,10)
         self.subscription # prevent unused variable warning
 
         self.mqtt_thread = Thread(target= self.run)

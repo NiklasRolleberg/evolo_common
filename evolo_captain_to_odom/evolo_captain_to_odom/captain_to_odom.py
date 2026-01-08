@@ -192,7 +192,7 @@ class Captain2Odom(Node):
 
         # Frames
         self.declare_parameter("output_odom_frame", "evolo/odom")
-        self.declare_parameter("base_link_frame", "base_link")
+        self.declare_parameter("base_link_frame", "evolo/base_link")
 
         # Behavior
         self.declare_parameter("correct_meridian_convergence", True)

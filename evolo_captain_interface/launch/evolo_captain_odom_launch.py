@@ -17,26 +17,21 @@ def generate_launch_description():
         default_value='evolo'
     )
 
-
-    mqtt_bridge_node = Node(
-        package='evolo_mqtt_bridge',
+    mqtt_odom_node = Node(
+        package='evolo_captain_to_odom',
         namespace=robot_ns,
-        executable='bridge',
-        name="evolo_mqtt_bridge",
-        parameters=[]
+        executable='captain_odom',
+        name="captain_odom_node",
+        parameters=[{"correct_meridian_convergence" : True,
+                     "publish_tf" : True,
+                     "output_rate" : 5.0,
+                     "verbose_setup" : False,
+                     "verbose_conversion" : False,
+                     "input_topic" : evoloTopics.EVOLO_CAPTAIN_STATE
+                    }]
     )
-
-    captain_interface = Node(
-        package='evolo_captain_interface',
-        namespace=robot_ns,
-        executable='interface',
-        name="captain_interface",
-        parameters=[]
-    )
-
 
     return LaunchDescription([
         robot_ns_launch_arg, 
-        mqtt_bridge_node,
-        captain_interface
+        mqtt_odom_node
     ])

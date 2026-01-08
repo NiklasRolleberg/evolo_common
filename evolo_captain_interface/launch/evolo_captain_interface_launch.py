@@ -26,17 +26,6 @@ def generate_launch_description():
         parameters=[]
     )
 
-    '''
-    odom_splitter_node = Node(
-        package='odom_splitter',
-        namespace=robot_ns,
-        executable='odom_splitter',
-        name='odom_splitter',
-        parameters=[{"robot_name": robot_ns
-        }]
-    )
-    '''
-
 
     return LaunchDescription([
         robot_ns_launch_arg, 
