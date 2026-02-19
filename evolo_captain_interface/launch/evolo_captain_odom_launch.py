@@ -17,12 +17,15 @@ def generate_launch_description():
         default_value='evolo'
     )
 
+    use_sim_time = LaunchConfiguration('use_sim_time')
+    
     mqtt_odom_node = Node(
         package='evolo_captain_to_odom',
         namespace=robot_ns,
         executable='captain_odom',
         name="captain_odom_node",
-        parameters=[{"correct_meridian_convergence" : True,
+        parameters=[{'use_sim_time': use_sim_time, 
+                     "correct_meridian_convergence" : True,
                      "publish_tf" : True,
                      "output_rate" : 5.0,
                      "verbose_setup" : False,

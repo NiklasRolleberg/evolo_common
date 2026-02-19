@@ -13,22 +13,6 @@ import random
 import paho.mqtt.client as mqtt
 import json
 
-broker = 'xxx.xxx.xxx.xxx'
-port = 0
-username = ''
-password = ''
-
-
-# Generate a Client ID with the subscribe prefix.
-client_id = f'subscribe-{random.randint(0, 100)}'
-
-
-
-#Mqtt topics to subscribe and publish to
-mqtt_sub_topic  = "topic"
-mqtt_pub_topic  = "topic"
-
-
 
 
 class Mqtt_bridge(Node):
@@ -36,13 +20,43 @@ class Mqtt_bridge(Node):
     def __init__(self):
         super().__init__('read_and_publish')
 
+        #Settings for mqtt connection
+        self.declare_parameter('broker_addr', '127.0.0.1')
+        self.broker = self.get_parameter('broker_addr').value
+        
+        self.declare_parameter('broker_port', 1883)
+        self.port = self.get_parameter('broker_port').value
+        
+        self.declare_parameter('broker_uname', '')
+        self.username = self.get_parameter('broker_uname').value
+
+        self.declare_parameter('broker_pw', '')
+        self.password = self.get_parameter('broker_pw').value
+
+        #Settings for topics
+        self.declare_parameter('ros_publish_topic', evoloTopics.EVOLO_CAPTAIN_FROM)
+        self.ROS_publish_topic = self.get_parameter('ros_publish_topic').value
+        
+        self.declare_parameter('ros_subscribe_topic', evoloTopics.EVOLO_CAPTAIN_TO)
+        self.ROS_subscribe_topic = self.get_parameter('ros_subscribe_topic').value
+
+        self.declare_parameter('mqtt_publish_topic', "pub")
+        self.MQTT_publish_topic = self.get_parameter('mqtt_publish_topic').value
+
+        self.declare_parameter('mqtt_subscribe_topics', ["sub"])
+        self.MQTT_subscribe_topics = self.get_parameter('mqtt_subscribe_topics').value
+
+        #print(f"broker `{self.broker}` topics: {self.MQTT_subscribe_topics}")
+        self.get_logger().info(f"broker `{self.broker}` topics: {self.MQTT_subscribe_topics}")
+
+        # Generate a Client ID with the subscribe prefix.
         self.mqtt_client = None
 
         # Create ROS publisher
-        self.publisher_ = self.create_publisher(String, evoloTopics.EVOLO_CAPTAIN_FROM, 10)
+        self.publisher_ = self.create_publisher(String, self.ROS_publish_topic, 10)
         
         # Create ROS subscriber
-        self.subscription = self.create_subscription(String,evoloTopics.EVOLO_CAPTAIN_TO, self.ros_callback,10)
+        self.subscription = self.create_subscription(String,self.ROS_subscribe_topic, self.ros_callback,10)
         self.subscription # prevent unused variable warning
 
         self.mqtt_thread = Thread(target= self.run)
@@ -51,11 +65,11 @@ class Mqtt_bridge(Node):
     def ros_callback(self, msg):
         self.get_logger().info("Received ROS message '{msg}'")
         if(self.mqtt_client != None):
-            self.mqtt_client.publish(topic=mqtt_pub_topic, payload=msg.data.encode())
+            self.mqtt_client.publish(topic=self.MQTT_publish_topic, payload=msg.data.encode())
 
     
     def mqtt_callback(self,client, userdata, msg):
-        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+        #self.get_logger().info(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
         ros_msg = String()
         ros_msg.data = msg.payload.decode()
         self.publisher_.publish(ros_msg)
@@ -67,11 +81,11 @@ class Mqtt_bridge(Node):
             else:
                 print("Failed to connect, return code %d\n", rc)
 
-        #client = mqtt_client.Client(client_id)
+        client_id = f'subscribe-{random.randint(0, 100)}'
         client = mqtt.Client(client_id=client_id, clean_session=True, userdata=None)
-        client.username_pw_set(username, password)
+        client.username_pw_set(self.username, self.password)
         client.on_connect = on_connect
-        client.connect(broker, port)
+        client.connect(self.broker, self.port)
         return client
 
 
@@ -82,7 +96,9 @@ class Mqtt_bridge(Node):
 
     def run(self):
         self.mqtt_client = self.mqtt_connect()
-        self.mqtt_subscribe(self.mqtt_client, mqtt_sub_topic)
+        for topic in self.MQTT_subscribe_topics:
+            self.mqtt_subscribe(self.mqtt_client, topic)
+            self.get_logger().info(f"subscribed to `{topic}`")
         self.mqtt_client.loop_forever()
 
 
@@ -93,6 +109,7 @@ class Mqtt_bridge(Node):
 def main(args=None):
 
     rclpy.init(args=args)
+
 
     minimal_publisher = Mqtt_bridge()
 

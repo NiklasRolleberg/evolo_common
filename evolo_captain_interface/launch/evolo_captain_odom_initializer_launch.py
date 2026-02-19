@@ -17,12 +17,20 @@ def generate_launch_description():
         default_value='evolo'
     )
 
+    use_sim_time = LaunchConfiguration('use_sim_time')
+
+    robot_ns_launch_arg = DeclareLaunchArgument(
+        'robot_name',
+        default_value='evolo'
+    )
+
     mqtt_odom_init_node = Node(
         package='evolo_captain_to_odom',
         namespace=robot_ns,
         executable='odom_initializer',
         name="captain_odom_initializer",
-        parameters=[{"update_rate": 0.1,
+        parameters=[{'use_sim_time': use_sim_time,
+                     "update_rate": 0.1,
                      "verbose": True,
                      "captain_topic" : evoloTopics.EVOLO_CAPTAIN_STATE
                      }]
