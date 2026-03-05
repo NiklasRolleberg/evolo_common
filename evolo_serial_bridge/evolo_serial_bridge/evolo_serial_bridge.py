@@ -20,7 +20,7 @@ class Mqtt_bridge(Node):
         super().__init__('read_and_publish')
 
 
-        self.ser = serial.Serial('/dev/ttyUSB0', 38400, timeout=1)  # open serial port
+        self.ser = serial.Serial('/dev/ttyUSB0', 115200, timeout=1)  # open serial port
 
         # Create ROS publisher
         self.publisher_ = self.create_publisher(String, evoloTopics.EVOLO_CAPTAIN_FROM, 10)
@@ -35,7 +35,7 @@ class Mqtt_bridge(Node):
     def ros_callback(self, msg:String):
         self.get_logger().info(f"Received ROS message '{msg}'")
         self.ser.write(msg.data.encode())
-        self.ser.write("\r\n")
+        self.ser.write("\r\n".encode())
         
 
 

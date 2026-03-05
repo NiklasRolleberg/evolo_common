@@ -31,7 +31,7 @@ class Evolo_captain_interface(Node):
 
         # Create ROS publisher
         self.state_publisher_ = self.create_publisher(CaptainState, evoloTopics.EVOLO_CAPTAIN_STATE, 10)
-        self.setpoint_publisher = self.create_publisher(String, "temp", 10)
+        self.setpoint_publisher = self.create_publisher(String, evoloTopics.EVOLO_CAPTAIN_TO, 10)
         
         # Create ROS subscriber
         self.subscription = self.create_subscription(String,evoloTopics.EVOLO_CAPTAIN_FROM, self.captain_callback,10)
@@ -75,8 +75,19 @@ class Evolo_captain_interface(Node):
 
     def captain_callback(self, msg:String):        
         try:
-            data = json.loads(msg.data)
-            self.get_logger().info(f"msg received: {msg.data}")
+            #No meningful data has less than 5 char
+            if len(msg.data) < 5:
+                return
+            self.get_logger().info(f"msg received: {msg.data.strip()}")
+            data = None
+            try:
+                split_str = msg.data.split('|')
+                if len(split_str) == 2:
+                    data = json.loads(split_str[1])
+            except Exception as e:
+                print(f"Split error: {e}")
+            if data == None:
+                data = json.loads(msg.data)
 
             #parse highAll
             if("ts" in data.keys() and
@@ -103,126 +114,80 @@ class Evolo_captain_interface(Node):
                 
                 try:
                     self.msg.ms = float(data["ts"])
-                    #self.msg.hBits = float(data["hBits"])
-                    #self.msg.hPerc = float(data["hPerc"])
-                    #self.msg.sBits = float(data["sBits"])
-                    #self.msg.throt = float(data["throt"])
+                    self.msg.healt_bits = int(data["hBits"])
+                    self.msg.health_percent = float(data["hPerc"])
+                    self.msg.status_bits = int(data["sBits"])
+                    self.msg.percent_throttle = float(data["throt"])
                     self.msg.lat = float(data["lat"])
                     self.msg.lon = float(data["lon"])
                     self.msg.sog = float(data["sog"])
                     self.msg.cog = float(data["cog"])
                     self.msg.hdop = float(data["hdop"])
                     self.msg.cef = float(data["cef"])
-                    #self.msg.elev = float(data["elev"])
-                    #self.msg.ail = float(data["ail"])
-                    #self.msg.altAim = float(data["altAim"])
-                    #self.msg.pitchAim = float(data["pitchAim"])
-                    #self.msg.rollAim = float(data["rollAim"])
-                    #self.msg.sogAim = float(data["sogAim"])
+                    self.msg.virtual_elevator = float(data["elev"])
+                    self.msg.virtual_aileron = float(data["ail"])
+                    self.msg.alt_aim = float(data["altAim"])
+                    self.msg.pitch_aim = float(data["pitchAim"])
+                    self.msg.roll_aim = float(data["rollAim"])
+                    self.msg.sog_aim = float(data["sogAim"])
                     #self.msg.rud = float(data["rud"])
                     #self.msg.tLeft = float(data["tLeft"])
                     #self.msg.tRight = float(data["tRight"])
                     #self.get_logger().info(f"Publishing state message {self.msg}")
+
+                    # Health bits
+                    bits = self.msg.healt_bits
+                    self.msg.health_loop_freq = (bits & 0b0000000000000001) != 0
+                    self.msg.health_voltage = (bits & 0b0000000000000010) != 0
+                    self.msg.health_hdop = (bits & 0b0000000000000100) != 0
+                    self.msg.health_gps_rate = (bits & 0b0000000000001000) != 0
+                    self.msg.health_imu = (bits & 0b0000000000010000) != 0
+                    self.msg.health_radar = (bits & 0b0000000000100000) != 0
+                    self.msg.health_tilt = (bits & 0b0000000001000000) != 0
+                    self.msg.health_radar_x = (bits & 0b0000000010000000) != 0
+                    self.msg.health_pitch = (bits & 0b0000000100000000) != 0
+                    self.msg.health_roll = (bits & 0b0000001000000000) != 0
+                    self.msg.health_ax = (bits & 0b0000010000000000) != 0
+                    self.msg.health_throttle = (bits & 0b0000100000000000) != 0
+                    self.msg.health_time_lock = (bits & 0b0001000000000000) != 0
+                    self.msg.health_hil = (bits & 0b0010000000000000) != 0
+                    self.msg.health_sd_memory = (bits & 0b0100000000000000) != 0
+                    self.msg.health_network_timeout = (bits & 0b1000000000000000) != 0#
+                    
+
+
+                    # StatusBits
+                    bits = self.msg.status_bits
+                    self.msg.status_throttle_disarmed = (bits & 0b0000000000000001) != 0
+                    self.msg.status_throttle_manual = (bits & 0b0000000000000010) != 0
+                    self.msg.status_throttle_auto = (bits & 0b0000000000000100) != 0
+                    self.msg.status_guidance_manual = (bits & 0b0000000000001000) != 0
+                    self.msg.status_guidance_target = (bits & 0b0000000000010000) != 0
+                    self.msg.status_guidance_route = (bits & 0b0000000000100000) != 0
+                    self.msg.status_paused = (bits & 0b0000000001000000) != 0
+                    self.msg.status_hil = (bits & 0b0000000010000000) != 0
+                    self.msg.status_sim = (bits & 0b0000000100000000) != 0
+                    self.msg.status_telemetry_4g = (bits & 0b0000001000000000) != 0
+                    self.msg.status_rc_required = (bits & 0b0000010000000000) != 0
+                    self.msg.status_route_finished = (bits & 0b0000100000000000) != 0
+                    self.msg.status_route_looping = (bits & 0b0001000000000000) != 0
+                    self.msg.status_route_ongoing = (bits & 0b0010000000000000) != 0
+                    self.msg.status_joystick_present = (bits & 0b0100000000000000) != 0
+                    self.msg.status_rc_active = (bits & 0b1000000000000000) != 0
+                    self.msg.status_radar1_active = (bits & 0b10000000000000000) != 0
+                    self.msg.status_radar2_active = (bits & 0b100000000000000000) != 0
+                    self.msg.status_gamepad_xxx = (bits & 0b1000000000000000000) != 0
+                    self.msg.status_allow_backseat_ctrl = (bits & 0b10000000000000000000) != 0
+
                     self.state_publisher_.publish(self.msg)
                 except Exception as e:
-                    self.get_logger().info(f"Error {e}")    
+                    self.get_logger().info(f"Error {e}")
                 
             
 
 
-            '''
-            if("state" in data.keys()):
-                state = data["state"]
-                #self.get_logger().info(f"Evolo state: {state}")
-
-
-                self.msg.lat = float(state[0])
-                self.msg.lon = float(state[1])
-                self.msg.sog = float(state[2])
-                self.msg.cog = float(state[3])
-                self.msg.roll = float(state[4])
-                self.msg.pitch = float(state[5])
-                self.msg.ms = float(state[6])
-                self.msg.freq = float(state[7])
-                self.msg.hdop = float(state[8])
-                self.msg.health_percent = float(state[9])
-                self.msg.mode = float(state[10])
-                self.msg.cef = float(state[11])
-                self.msg.voltage = float(state[12])
-                self.msg.current = float(state[13])
-                self.msg.percent_throttle = float(state[14])
-                self.msg.altitude = float(state[15])
-                self.msg.virtual_elevator = float(state[16])
-                self.msg.virtual_aileron = float(state[17])
-                self.msg.alt_aim = float(state[18])
-                self.msg.healt_bits = state[19]
-                self.msg.elevator_bias = float(state[20])
-                self.msg.aileron_bias = float(state[21])
-                self.msg.status_bits = state[22]
-                self.msg.hs = float(state[23])
-                self.msg.pitch_aim = float(state[24])
-                self.msg.roll_aim = float(state[25])
-                self.msg.sog_aim = float(state[26])
-                self.msg.four_g_data = float(state[27])
-                self.msg.free_mbon_sd = float(state[28])
-                self.msg.speed_limit = float(state[29])
-                self.msg.left_throttle_couch = float(state[30])
-                self.msg.right_throttle_couch = float(state[31])
-                self.msg.status_bits2 = state[32]
-                self.msg.radar1_confidence = float(state[33])
-                self.msg.radar2_confidence = float(state[34])
-                self.msg.roll_rate = float(state[35])
-                self.msg.pitch_rate = float(state[36])
-
-                # Health bits
-                #bits = msg.healt_bits
-                #self.msg.health_loop_freq = (bits & 0b0000000000000001) != 0
-                #self.msg.health_voltage = (bits & 0b0000000000000010) != 0
-                #self.msg.health_hdop = (bits & 0b0000000000000100) != 0
-                #self.msg.health_gps_rate = (bits & 0b0000000000001000) != 0
-                #self.msg.health_imu = (bits & 0b0000000000010000) != 0
-                #self.msg.health_radar = (bits & 0b0000000000100000) != 0
-                #self.msg.health_tilt = (bits & 0b0000000001000000) != 0
-                #self.msg.health_radar_x = (bits & 0b0000000010000000) != 0
-                #self.msg.health_pitch = (bits & 0b0000000100000000) != 0
-                #self.msg.health_roll = (bits & 0b0000001000000000) != 0
-                #self.msg.health_ax = (bits & 0b0000010000000000) != 0
-                #self.msg.health_throttle = (bits & 0b0000100000000000) != 0
-                #self.msg.health_time_lock = (bits & 0b0001000000000000) != 0
-                #self.msg.health_hil = (bits & 0b0010000000000000) != 0
-                #self.msg.health_sd_memory = (bits & 0b0100000000000000) != 0
-                #self.msg.health_network_timeout = (bits & 0b1000000000000000) != 0#
-#
-
-
-                # StatusBits
-                bits = msg.status_bits
-                #self.msg.status_throttle_disarmed = (bits & 0b0000000000000001) != 0
-                #self.msg.status_throttle_manual = (bits & 0b0000000000000010) != 0
-                #self.msg.status_throttle_auto = (bits & 0b0000000000000100) != 0
-                #self.msg.status_guidance_manual = (bits & 0b0000000000001000) != 0
-                #self.msg.status_guidance_target = (bits & 0b0000000000010000) != 0
-                #self.msg.status_guidance_route = (bits & 0b0000000000100000) != 0
-                #self.msg.status_paused = (bits & 0b0000000001000000) != 0
-                #self.msg.status_hil = (bits & 0b0000000010000000) != 0
-                #self.msg.status_sim = (bits & 0b0000000100000000) != 0
-                #self.msg.status_telemetry_4g = (bits & 0b0000001000000000) != 0
-                #self.msg.status_rc_required = (bits & 0b0000010000000000) != 0
-                #self.msg.status_route_finished = (bits & 0b0000100000000000) != 0
-                #self.msg.status_route_looping = (bits & 0b0001000000000000) != 0
-                #self.msg.status_route_ongoing = (bits & 0b0010000000000000) != 0
-                #self.msg.status_joystick_present = (bits & 0b0100000000000000) != 0
-                #self.msg.status_rc_active = (bits & 0b1000000000000000) != 0
-                #self.msg.status_radar1_active = (bits & 0b10000000000000000) != 0
-                #self.msg.status_radar2_active = (bits & 0b100000000000000000) != 0
-                #self.msg.status_gamepad_xxx = (bits & 0b1000000000000000000) != 0
-                #self.msg.status_allow_backseat_ctrl = (bits & 0b10000000000000000000) != 0
-
-                self.publisher_.publish(msg)
-                '''
-
         except Exception as e:
-            print(e)
+            self.get_logger().info(f"Big error: {e}")
 
         #TODO parse message
 
@@ -249,3 +214,54 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+
+'''
+
+state = data["state"]
+#self.get_logger().info(f"Evolo state: {state}")
+
+
+self.msg.lat = float(state[0])
+self.msg.lon = float(state[1])
+self.msg.sog = float(state[2])
+self.msg.cog = float(state[3])
+self.msg.roll = float(state[4])
+self.msg.pitch = float(state[5])
+self.msg.ms = float(state[6])
+self.msg.freq = float(state[7])
+self.msg.hdop = float(state[8])
+self.msg.health_percent = float(state[9])
+self.msg.mode = float(state[10])
+self.msg.cef = float(state[11])
+self.msg.voltage = float(state[12])
+self.msg.current = float(state[13])
+self.msg.percent_throttle = float(state[14])
+self.msg.altitude = float(state[15])
+self.msg.virtual_elevator = float(state[16])
+self.msg.virtual_aileron = float(state[17])
+self.msg.alt_aim = float(state[18])
+self.msg.healt_bits = state[19]
+self.msg.elevator_bias = float(state[20])
+self.msg.aileron_bias = float(state[21])
+self.msg.status_bits = state[22]
+self.msg.hs = float(state[23])
+self.msg.pitch_aim = float(state[24])
+self.msg.roll_aim = float(state[25])
+self.msg.sog_aim = float(state[26])
+self.msg.four_g_data = float(state[27])
+self.msg.free_mbon_sd = float(state[28])
+self.msg.speed_limit = float(state[29])
+self.msg.left_throttle_couch = float(state[30])
+self.msg.right_throttle_couch = float(state[31])
+self.msg.status_bits2 = state[32]
+self.msg.radar1_confidence = float(state[33])
+self.msg.radar2_confidence = float(state[34])
+self.msg.roll_rate = float(state[35])
+self.msg.pitch_rate = float(state[36])
+
+
+
+self.publisher_.publish(msg)
+'''
