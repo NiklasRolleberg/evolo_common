@@ -39,7 +39,7 @@ class MapOdomInitializer(Node):
         self.declare_parameter("verbose", True)
         self.verbose = self.get_parameter("verbose").value
 
-        self.declare_parameter("sbg_nav_topic", "/sbg/ekf_nav")
+        self.declare_parameter("sbg_nav_topic", "sbg/ekf_nav")
         captain_topic = self.get_parameter("sbg_nav_topic").value
 
         self._log(f'map -> odom initialization')

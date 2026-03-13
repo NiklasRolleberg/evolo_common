@@ -20,6 +20,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "geometry_msgs/msg/point.hpp"
 #include "geometry_msgs/msg/quaternion.hpp"
+#include "geographic_msgs/msg/geo_point.hpp"
 
 #include "sbg_driver/msg/sbg_ekf_quat.hpp"
 #include "sbg_driver/msg/sbg_ekf_nav.hpp"
@@ -32,14 +33,17 @@ class SbgToOdom : public rclcpp::Node {
  public:
   SbgToOdom() : Node("sbg_nav_to_odom") {
     odom_pub_ = this->create_publisher<nav_msgs::msg::Odometry>(
-        "evolo/smarc/odom", 10);
+        "smarc/odom", 10);
+    
+    latlon_pub_ = this->create_publisher<geographic_msgs::msg::GeoPoint>(
+        "smarc/latlon", 10);
 
     sbg_nav_sub_ = this->create_subscription<sbg_driver::msg::SbgEkfNav>(
-        "/sbg/ekf_nav", 10,
+        "sbg/ekf_nav", 10,
         std::bind(&SbgToOdom::SbgNavCallback, this, std::placeholders::_1));
 
     sbg_quat_sub_ = this->create_subscription<sbg_driver::msg::SbgEkfQuat>(
-        "/sbg/ekf_quat", 10,
+        "sbg/ekf_quat", 10,
         std::bind(&SbgToOdom::SbgQuatCallback, this, std::placeholders::_1));
 
     // Timer for checking for and publishing updates..
@@ -66,6 +70,10 @@ class SbgToOdom : public rclcpp::Node {
   double x_vel;  // SBG's X velocity.
   double y_vel;  // SBG's Y velocity.
 
+  double latitude_;
+  double longitude_;
+  double altitude_;
+
   // Quat for odometry message.
   geometry_msgs::msg::Quaternion quat_msg;
   geometry_msgs::msg::Point pos_msg;
@@ -84,6 +92,7 @@ class SbgToOdom : public rclcpp::Node {
                                                          0, 0, -1).finished();
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
+  rclcpp::Publisher<geographic_msgs::msg::GeoPoint>::SharedPtr latlon_pub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfNav>::SharedPtr sbg_nav_sub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfQuat>::SharedPtr sbg_quat_sub_;
 
@@ -96,6 +105,10 @@ class SbgToOdom : public rclcpp::Node {
     }
 
     header_msg = msg->header;
+
+    latitude_ = msg->latitude;
+    longitude_ = msg->longitude;
+    altitude_ = 0.0 /*msg->altitude*/;
 
     // Get lat/lon in UTM
     int zone;
@@ -181,10 +194,20 @@ class SbgToOdom : public rclcpp::Node {
   nav_msgs::msg::Odometry OdomToMessage() {
     nav_msgs::msg::Odometry msg;
     msg.header = header_msg;
-    msg.header.frame_id = "/evolo/odom";
+    msg.header.frame_id = "evolo/odom";
     msg.child_frame_id = "evolo/base_link";
     msg.pose.pose.position = pos_msg;
     msg.pose.pose.orientation = quat_msg;
+    return msg;
+  }
+
+  // -----------------------------------------------------------------------
+  geographic_msgs::msg::GeoPoint LatLonToMessage() {
+    geographic_msgs::msg::GeoPoint msg;
+    msg.latitude = latitude_;
+    msg.longitude = longitude_;
+    msg.altitude = altitude_;
+
     return msg;
   }
 
@@ -194,6 +217,8 @@ class SbgToOdom : public rclcpp::Node {
       getUtmOffset();
     }
     odom_pub_->publish(OdomToMessage());
+
+    latlon_pub_->publish(LatLonToMessage());
 
     //Broadcast base_link transform
     geometry_msgs::msg::TransformStamped t;
@@ -222,7 +247,7 @@ class SbgToOdom : public rclcpp::Node {
 int main(int argc, char **argv) {
   rclcpp::init(argc, argv);
 
-  std::cout << "Starting fake target publisher.\n";
+  std::cout << "Starting evolo odom publisher.\n";
   rclcpp::spin(std::make_shared<SbgToOdom>());
 
   rclcpp::shutdown();

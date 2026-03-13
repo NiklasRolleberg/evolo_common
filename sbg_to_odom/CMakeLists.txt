@@ -20,6 +20,7 @@ find_package(std_msgs REQUIRED)
 find_package(sbg_driver REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(geographic_msgs REQUIRED)
 
 add_executable(sbg_nav_to_evolo_odom src/sbg_nav_to_evolo_odom.cpp)
 target_include_directories(sbg_nav_to_evolo_odom PUBLIC ./include/${GeographicLib_INCLUDE_DIRS})
@@ -32,6 +33,7 @@ target_link_libraries(sbg_nav_to_evolo_odom
   ${tf2_TARGETS}
   ${tf2_ros_TARGETS}
   ${GeographicLib_LIBRARIES}
+  ${geographic_msgs_TARGETS}
   Eigen3::Eigen
   )
 
