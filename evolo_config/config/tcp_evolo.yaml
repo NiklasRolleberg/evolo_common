@@ -1,0 +1,65 @@
+# See Udp1.yaml for parameter descriptions
+/**/*:
+  ros__parameters:
+    network_interface: "network_bridge::TcpInterface"
+
+    TcpInterface:
+      role: "server" # "client" or "server"
+      port: 5000 # Desired port to listen on
+
+    ###
+    ## Parameters for ROS2->Network
+    ###
+
+    # The rate at which to send data over the network interface
+    # This could be set >= than publish rate if you wish to
+    # get every message, or < if you wish to only sample the message.
+    default_rate: 0.5
+
+    # The level of compression to use when sending data over the network (1-22).
+    # Beware that small messages may actually expand with high compression.
+    # Higher compression levels are good for large messages when bandwidth is
+    # small.  Lower compression levels are good for smaller messages or in
+    # cases where bandwidth is less limited than CPU.
+    # Launching with debug logging will show message size in bytes if you wish to tune this.
+    default_zstd_level: 3
+
+    # Whether to re-transmit data if a new ROS2 message has not been
+    # received within the topic rate.  Can be useful in unreliable
+    # networks where you want to increase odds of getting every message.
+    publish_stale_data: False
+
+    # List all topics that are to be sent over the network interface
+    topics:
+      - "/evolo/gimbal/smarc/odom"
+      - "/evolo/sensors/gimbal_camera/camera/image_raw/compressed"
+      - "/evolo/sensors/lidar/points"
+      - "/evolo/sbg/gps_hdt"
+      - "/evolo/sbg/gps_pos"
+      - "/tf"
+      - "/tf_static"
+
+    # Defaults can be overridden for all topics
+    #/evolo/sensors/lidar/points:
+    #  - rate: [1.]
+
+    /tf:
+      - is_tf: True
+      - is_static_tf: False
+      #- rate: 100.0
+
+    #/tf_static:
+    #  - is_tf: True
+    #  #- is_static_tf: True
+    #  #- rate: 1.0
+    #  #- exclude: ["standoff.*", "spacer.*", ".*wheel_link", ".*cliff.*"]
+
+    # Namespace to be applied to subscribed topics
+    subscribe_namespace: ""
+
+    ###
+    ## Parameters for Network->ROS2
+    ###
+
+    # namespace of published ros2 messages. Can be useful for testing.
+    publish_namespace: "/from_remote"
