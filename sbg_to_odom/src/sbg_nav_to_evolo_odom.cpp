@@ -85,11 +85,9 @@ class SbgToOdom : public rclcpp::Node {
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-    // TODO: NED->ENU rotation.
-    //const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
-    Eigen::Matrix3d R_NED_to_ENU = (Eigen::Matrix3d() << 0, 1, 0,
-                                                         1, 0, 0,
-                                                         0, 0, -1).finished();
+  Eigen::Matrix3d R_NED_to_ENU = (Eigen::Matrix3d() << 0, 1, 0,
+                                                        1, 0, 0,
+                                                        0, 0, -1).finished();
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<geographic_msgs::msg::GeoPoint>::SharedPtr latlon_pub_;
@@ -115,9 +113,6 @@ class SbgToOdom : public rclcpp::Node {
     bool northp;
     GeographicLib::UTMUPS::Forward(msg->latitude, msg->longitude, zone, northp,
                                     x_, y_);
-    std::cout << "Position in UTM " << x_ << " " << y_ << "\n";
-    std::cout << "UTM offset " << x_utm_offset_ << " " << y_utm_offset_ << "\n";
-
     x_ -= x_utm_offset_;
     y_ -= y_utm_offset_;
 
@@ -133,44 +128,23 @@ class SbgToOdom : public rclcpp::Node {
     double qz = msg->quaternion.z;
     double qw = msg->quaternion.w;
 
-    //std::cout << "SBG quat received "<< std::endl;
-    
-    // TODO: NED->ENU rotation.
-    //const gtsam::Rot3 ned_to_enu_ = gtsam::Rot3::RzRyRx(-M_PI / 2.0, 0.0, M_PI);
-
-
     // Convert quaternion to rotation matrix
     Eigen::Quaterniond ned_to_sbg(qw, qx, qy, qz);
     Eigen::Matrix3d rotationMatrix = ned_to_sbg.toRotationMatrix();
 
     // Apply the transformation matrix to the rotation matrix
-    Eigen::Matrix3d newRotationMatrix = R_NED_to_ENU.inverse() * rotationMatrix;// * R_NED_to_ENU.transpose();
+    Eigen::Matrix3d newRotationMatrix =
+        R_NED_to_ENU * rotationMatrix;  // R_NED_to_ENU.transpose();
 
     // Convert back to a quaternion in the ENU frame
     Eigen::Quaterniond q_ENU(newRotationMatrix);
 
-    //for reference
-    //const gtsam::Rot3 ned_to_sbg = gtsam::Rot3::Quaternion(qw, qx, qy, qz);
-    //const gtsam::Rot3 enu_to_sbg = ned_to_enu_.inverse() * ned_to_sbg;
-    //const gtsam::Quaternion quat = enu_to_sbg.toQuaternion();
-    //this->quat_msg.x = enu_to_sbg.x();
-    //this->quat_msg.y = enu_to_sbg.y();
-    //this->quat_msg.z = enu_to_sbg.z();
-    //this->quat_msg.w = enu_to_sbg.w();
-
-    //this->quat_msg.x = q_ENU.x();
-    //this->quat_msg.y = q_ENU.y();
-    //this->quat_msg.z = q_ENU.z();
-    //this->quat_msg.w = q_ENU.w();
-
-    this->quat_msg.x= msg->quaternion.x;
-    this->quat_msg.y= msg->quaternion.y;
-    this->quat_msg.z= msg->quaternion.z;
-    this->quat_msg.w= msg->quaternion.w;
+    this->quat_msg.x = q_ENU.x();
+    this->quat_msg.y = q_ENU.y();
+    this->quat_msg.z = q_ENU.z();
+    this->quat_msg.w = q_ENU.w();
 
     //TODO velocities
-
-
   }
 
   // -----------------------------------------------------------------------
