@@ -88,6 +88,8 @@ class SbgToOdom : public rclcpp::Node {
   Eigen::Matrix3d R_NED_to_ENU = (Eigen::Matrix3d() << 0, 1, 0,
                                                         1, 0, 0,
                                                         0, 0, -1).finished();
+  Eigen::Matrix3d R_SBG_to_ROS =
+      Eigen::AngleAxisd(M_PI, Eigen::Vector3d::UnitX()).toRotationMatrix();
 
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_pub_;
   rclcpp::Publisher<geographic_msgs::msg::GeoPoint>::SharedPtr latlon_pub_;
@@ -127,24 +129,22 @@ class SbgToOdom : public rclcpp::Node {
     double qy = msg->quaternion.y;
     double qz = msg->quaternion.z;
     double qw = msg->quaternion.w;
-
     // Convert quaternion to rotation matrix
     Eigen::Quaterniond ned_to_sbg(qw, qx, qy, qz);
-    Eigen::Matrix3d rotationMatrix = ned_to_sbg.toRotationMatrix();
+    ned_to_sbg.normalize();
+    Eigen::Matrix3d R_sbg = ned_to_sbg.toRotationMatrix();
 
-    // Apply the transformation matrix to the rotation matrix
-    Eigen::Matrix3d newRotationMatrix =
-        R_NED_to_ENU * rotationMatrix;  // R_NED_to_ENU.transpose();
+    Eigen::Matrix3d R_ros = R_NED_to_ENU * R_sbg * R_SBG_to_ROS;
 
-    // Convert back to a quaternion in the ENU frame
-    Eigen::Quaterniond q_ENU(newRotationMatrix);
+    Eigen::Quaterniond q_ros(R_ros);
+    q_ros.normalize();
 
-    this->quat_msg.x = q_ENU.x();
-    this->quat_msg.y = q_ENU.y();
-    this->quat_msg.z = q_ENU.z();
-    this->quat_msg.w = q_ENU.w();
+    this->quat_msg.x = q_ros.x();
+    this->quat_msg.y = q_ros.y();
+    this->quat_msg.z = q_ros.z();
+    this->quat_msg.w = q_ros.w();
 
-    //TODO velocities
+    // TODO velocities
   }
 
   // -----------------------------------------------------------------------
