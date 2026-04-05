@@ -5,7 +5,7 @@
 
     TcpInterface:
       role: "client" # "client" or "server"
-      remote_address: "192.168.43.16" # IP of the server
+      remote_address: "192.168.2.100" # IP of the server
       port: 5000 # Desired port to connect to
 
     default_rate: 100.0
