@@ -14,7 +14,7 @@
     # The rate at which to send data over the network interface
     # This could be set >= than publish rate if you wish to
     # get every message, or < if you wish to only sample the message.
-    default_rate: 0.5
+    default_rate: 2
 
     # The level of compression to use when sending data over the network (1-22).
     # Beware that small messages may actually expand with high compression.
@@ -34,8 +34,10 @@
       - "/evolo/gimbal/smarc/odom"
       - "/evolo/sensors/gimbal_camera/camera/image_raw/compressed"
       - "/evolo/sensors/lidar/points"
+      - "/evolo/sensors/sidescan"
       - "/evolo/sbg/gps_hdt"
       - "/evolo/sbg/gps_pos"
+      - "/evolo/smarc/odom"
       - "/tf"
       - "/tf_static"
 

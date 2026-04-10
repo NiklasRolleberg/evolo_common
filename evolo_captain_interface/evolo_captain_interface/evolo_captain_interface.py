@@ -7,7 +7,7 @@ from threading import Thread
 
 from evolo_msgs.msg import Topics as evoloTopics
 from evolo_msgs.msg import CaptainState
-
+import math
 import random
 import json
 
@@ -65,11 +65,11 @@ class Evolo_captain_interface(Node):
             self.get_logger().info(f"Published:  '{msg.data}'")
 
     def steer_control_callback(self, msg):
-        self.turning_setpoint = msg.data #TODO convert from ENU to NED
+        self.turning_setpoint = math.degrees(-msg.data)
         self.turning_ts = self.time_now()
         
     def speed_control_callback(self, msg):
-        self.speed_setpoint = msg.data #TODO convert from m/s to knots
+        self.speed_setpoint = 1.943*msg.data
         self.speed_ts = self.time_now()
 
 
