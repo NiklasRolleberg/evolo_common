@@ -14,7 +14,7 @@
     # The rate at which to send data over the network interface
     # This could be set >= than publish rate if you wish to
     # get every message, or < if you wish to only sample the message.
-    default_rate: 2
+    default_rate: 2.0
 
     # The level of compression to use when sending data over the network (1-22).
     # Beware that small messages may actually expand with high compression.
