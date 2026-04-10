@@ -7,15 +7,14 @@ from launch.substitutions import LaunchConfiguration
 from evolo_msgs.msg import Topics as evoloTopics
 
 #MQTT parameters
-broker_addr = '127.0.0.01'
+broker_addr = '127.0.0.1'
 broker_port = 1883
 broker_uname = ""
 broker_pw = ""
 
 #Topic parameters
 ros_publish_topic = evoloTopics.EVOLO_MQTT_GIMBAL_CAMCMD
-# TODO: What's the topic name that Jakob's sending from the GUI?!
-mqtt_subscribe_topics = [""]
+mqtt_subscribe_topics = ["e/to/3843318481/camcmd"]
 
 
 def generate_launch_description():
@@ -44,6 +43,7 @@ def generate_launch_description():
                     "broker_uname" : broker_uname,
                     "broker_pw" : broker_pw,
                     "ros_publish_topic" : ros_publish_topic,
+                    "ros_subscribe_topic" : "not_used",
                     "mqtt_subscribe_topics" : mqtt_subscribe_topics
                     }])
 
