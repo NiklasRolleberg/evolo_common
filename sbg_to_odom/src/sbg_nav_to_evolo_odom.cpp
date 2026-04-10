@@ -24,6 +24,7 @@
 
 #include "sbg_driver/msg/sbg_ekf_quat.hpp"
 #include "sbg_driver/msg/sbg_ekf_nav.hpp"
+#include "sbg_driver/msg/sbg_imu_data.hpp"
 
 #include "GeographicLib/UTMUPS.hpp"
 
@@ -46,6 +47,10 @@ class SbgToOdom : public rclcpp::Node {
         "sbg/ekf_quat", 10,
         std::bind(&SbgToOdom::SbgQuatCallback, this, std::placeholders::_1));
 
+    sbg_imu_sub_ = this->create_subscription<sbg_driver::msg::SbgImuData>(
+        "sbg/imu_data", 10,
+        std::bind(&SbgToOdom::SbgImuCallback, this, std::placeholders::_1));
+
     // Timer for checking for and publishing updates..
     target_timer_ = this->create_wall_timer(
         100ms, std::bind(&SbgToOdom::odom_timer_callback, this));
@@ -67,8 +72,18 @@ class SbgToOdom : public rclcpp::Node {
   double y_utm_offset_;  // Y offset from utm->evolo/odom.
   bool utm_init_ = false;
 
-  double x_vel;  // SBG's X velocity.
-  double y_vel;  // SBG's Y velocity.
+  double x_vel;  // X velocity in body frame.
+  double y_vel;  // Y velocity in body frame.
+  double z_vel;  // Z velocity in body frame.
+
+  double rot_x; // rotation around x (body frame)
+  double rot_y; // rotation around y (body frame)
+  double rot_z; // rotation around z (body frame)
+
+  double sbg_qx; //quaterion in NED frame
+  double sbg_qy; //quaterion in NED frame
+  double sbg_qz; //quaterion in NED frame
+  double sbg_qw; //quaterion in NED frame
 
   double latitude_;
   double longitude_;
@@ -95,6 +110,7 @@ class SbgToOdom : public rclcpp::Node {
   rclcpp::Publisher<geographic_msgs::msg::GeoPoint>::SharedPtr latlon_pub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfNav>::SharedPtr sbg_nav_sub_;
   rclcpp::Subscription<sbg_driver::msg::SbgEkfQuat>::SharedPtr sbg_quat_sub_;
+  rclcpp::Subscription<sbg_driver::msg::SbgImuData>::SharedPtr sbg_imu_sub_;
 
   rclcpp::TimerBase::SharedPtr target_timer_;
 
@@ -121,16 +137,31 @@ class SbgToOdom : public rclcpp::Node {
     pos_msg.x = x_;
     pos_msg.y = y_;
     pos_msg.z = 0.0;
+
+    Eigen::Vector3d velocity_global(msg->velocity.x,
+                                    msg->velocity.y,
+                                    msg->velocity.z); // velocity in global frame
+
+    Eigen::Quaterniond evolo_rotion_NED(sbg_qw,
+                                        sbg_qx,
+                                        sbg_qy,
+                                        sbg_qz);  // current roation
+
+    Eigen::Vector3d velocity_body_frame = evolo_rotion_NED.inverse() * velocity_global;
+
+    x_vel = velocity_body_frame.x();
+    y_vel = -velocity_body_frame.y(); // Convert from ENU to NED
+    z_vel = -velocity_body_frame.z(); // Convert from ENU to NED
   }
 
   // -----------------------------------------------------------------------
   void SbgQuatCallback(const sbg_driver::msg::SbgEkfQuat::SharedPtr msg) {
-    double qx = msg->quaternion.x;
-    double qy = msg->quaternion.y;
-    double qz = msg->quaternion.z;
-    double qw = msg->quaternion.w;
+    sbg_qx = msg->quaternion.x;
+    sbg_qy = msg->quaternion.y;
+    sbg_qz = msg->quaternion.z;
+    sbg_qw = msg->quaternion.w;
     // Convert quaternion to rotation matrix
-    Eigen::Quaterniond ned_to_sbg(qw, qx, qy, qz);
+    Eigen::Quaterniond ned_to_sbg(sbg_qw, sbg_qx, sbg_qy, sbg_qz);
     ned_to_sbg.normalize();
     Eigen::Matrix3d R_sbg = ned_to_sbg.toRotationMatrix();
 
@@ -143,8 +174,13 @@ class SbgToOdom : public rclcpp::Node {
     this->quat_msg.y = q_ros.y();
     this->quat_msg.z = q_ros.z();
     this->quat_msg.w = q_ros.w();
+  }
 
-    // TODO velocities
+  // -----------------------------------------------------------------------
+  void SbgImuCallback(const sbg_driver::msg::SbgImuData::SharedPtr msg) {
+    rot_x = msg->gyro.x;
+    rot_y =  - msg->gyro.y; // * -1 because imu data is in  NED and we want it in ENU
+    rot_z =  - msg->gyro.z; // * -1 because imu data is in  NED and we want it in ENU
   }
 
   // -----------------------------------------------------------------------
@@ -172,6 +208,12 @@ class SbgToOdom : public rclcpp::Node {
     msg.child_frame_id = "evolo/base_link";
     msg.pose.pose.position = pos_msg;
     msg.pose.pose.orientation = quat_msg;
+    msg.twist.twist.linear.x = x_vel;
+    msg.twist.twist.linear.y = y_vel;
+    msg.twist.twist.linear.z = z_vel;
+    msg.twist.twist.angular.x = rot_x;
+    msg.twist.twist.angular.y = rot_y;
+    msg.twist.twist.angular.z = rot_z;
     return msg;
   }
 
