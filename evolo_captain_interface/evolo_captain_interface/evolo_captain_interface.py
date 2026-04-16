@@ -65,7 +65,9 @@ class Evolo_captain_interface(Node):
             self.get_logger().info(f"Published:  '{msg.data}'")
 
     def steer_control_callback(self, msg):
-        self.turning_setpoint = math.degrees(-msg.data)
+        self.turning_setpoint = -msg.data
+        if self.turning_setpoint < -179.0: self.turning_setpoint = 180.0
+        if self.turning_setpoint > 179.0: self.turning_setpoint = 180.0
         self.turning_ts = self.time_now()
         
     def speed_control_callback(self, msg):
