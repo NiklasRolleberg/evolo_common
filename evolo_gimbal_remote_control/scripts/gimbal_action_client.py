@@ -66,14 +66,21 @@ class Camera_control_client:
         self.gimbal_track_odom_poi_ac = BTActionClient(node=self._node, action_name='gimbal_track_odom_poi', action_type=ActionType(BaseAction))
         self.gimbal_stop_ac = BTActionClient(node=self._node, action_name='gimbal_stop', action_type=ActionType(BaseAction))
 
-        #TODO Yolo action servers?
+        #Yolo action servers?
+        self.yolo_classes_ac = BTActionClient(node=self._node, action_name='yolo_set_classes', action_type=ActionType(BaseAction))
+        self.yolo_threshold_ac = BTActionClient(node=self._node, action_name='yolo_set_threshold', action_type=ActionType(BaseAction))
+        self.yolo_track_id_ac = BTActionClient(node=self._node, action_name='yolo_set_tracking', action_type=ActionType(BaseAction))
+
 
         self._action_clients = [
                                 self.gimbal_set_rpy_ac,
                                 self.gimbal_set_geopoint_ac,
                                 self.gimbal_track_img_poi_ac,
                                 self.gimbal_track_odom_poi_ac,
-                                self.gimbal_stop_ac
+                                self.gimbal_stop_ac,
+                                self.yolo_classes_ac,
+                                self.yolo_threshold_ac,
+                                self.yolo_track_id_ac
                                 
         ]
 
@@ -81,60 +88,97 @@ class Camera_control_client:
         self._node.get_logger().info(f"Setup success: {setup_success}")
 
         #Run Action clients here for better luck with thread problems
-        self.timer = self._node.create_timer(2.0,self.timer_callback)
+        self.timer = self._node.create_timer(5.0,self.timer_callback)
 
 
     def timer_callback(self):
         if self.json_cmd != None:
-            
+            # Camera operation mode
             if("mode" in self.json_cmd.keys()):
                 command_type = self.json_cmd["mode"]
 
                 try:
-                    #Set the goal and the action server to be called
+                    #Euler angles 
                     if command_type == "EULER": #Euler callback
-                        self._set_goal(self.gimbal_set_rpy_ac, {
+                        #Create goal
+                        _goal = self._set_goal(self.gimbal_set_rpy_ac, {
                             "roll": self.json_cmd["roll"],
                             "pitch": self.json_cmd["pitch"],
                             "yaw": self.json_cmd["yaw"]
                         })
+
+                        #Send goal to action server
+                        try:
+                            self.gimbal_set_rpy_ac.send_goal(_goal)
+                            self._node.get_logger().info(f"Set goal for {self.gimbal_set_rpy_ac.action_type}.")
+                        except Exception as e:
+                            self._node.get_logger().error(f"Error sending goal to AC {self.gimbal_set_rpy_ac.action_type} : {e}.")
+
+                    #Geopoint POI
                     elif command_type == "GEO_POI": #POI callback
-                        self._set_goal(self.gimbal_set_geopoint_ac, {
+                        _goal._set_goal(self.gimbal_set_geopoint_ac, {
                             "latitude": self.json_cmd["latitude"],
                             "longitude": self.json_cmd["longitude"],
                             "altitude": self.json_cmd["altitude"]
                         })
-                    elif command_type == "IMG_POI": #Image POI
-                        pass
-                        #self._set_goal(self.gimbal_track_img_poi_ac, {
-                        #    "gain": 1.2
-                        #})
-                    elif command_type == "ODOM_POI": #Odom POI
-                        pass
-                        #self._set_goal(self.gimbal_track_odom_poi_ac, {
-                        #    "gain": 1.2
-                        #})
+                        try:
+                            self.gimbal_set_geopoint_ac.send_goal(_goal)
+                            self._node.get_logger().info(f"Set goal for {self.gimbal_set_geopoint_ac.action_type}.")
+                        except Exception as e:
+                            self._node.get_logger().error(f"Error sending goal to AC {self.gimbal_set_geopoint_ac.action_type} : {e}.")
+
+                    # Track
+                    elif command_type == "TRACK": #Image POI
+                        pass # Not implemented yet
+                    
+                    # Stop
                     elif command_type == "STOP": #Stop
-                        self._set_goal(self.gimbal_stop_ac, {})
+                        _goal._set_goal(self.gimbal_stop_ac, {})
+                        try:
+                            self.gimbal_stop_ac.send_goal(_goal)
+                            self._node.get_logger().info(f"Set goal for {self.gimbal_stop_ac.action_type}.")
+                        except Exception as e:
+                            self._node.get_logger().error(f"Error sending goal to AC {self.gimbal_stop_ac.action_type} : {e}.")
                     else:
                         self._node.get_logger().error("Unknown camera command")
                 except Exception as e:
                     self._node.get_logger().error(f"Falied to set goal: {e}")
         
+            #Yolo detection settings
+            if("detect" in self.json_cmd.keys()):
+                classes = self.json_cmd["detect"]
+                try:
+                    _goal = self._set_goal(self.yolo_classes_ac, {
+                            "classes": classes
+                        })
+                    try:
+                        self.yolo_classes_ac.send_goal(_goal)
+                        self._node.get_logger().info(f"Set goal for {self.yolo_classes_ac.action_type}.")
+                    except Exception as e:
+                        self._node.get_logger().error(f"Error sending goal to AC {self.yolo_classes_ac.action_type} : {e}.")
+                        
+                except Exception as e:
+                    self._node.get_logger().error(f"Falied to set goal: {e}")
+
+            #Yolo threshold settings
+            if("threshold" in self.json_cmd.keys()):
+                threshold = self.json_cmd["threshold"]
+                try:
+                    _goal = self._set_goal(self.yolo_threshold_ac, {
+                            "threshold": threshold
+                        })
+                    try:
+                        self.yolo_threshold_ac.send_goal(_goal)
+                        self._node.get_logger().info(f"Set goal for {self.yolo_threshold_ac.action_type}.")
+                    except Exception as e:
+                        self._node.get_logger().error(f"Error sending goal to AC {self.yolo_threshold_ac.action_type} : {e}.")
+                        
+                except Exception as e:
+                    self._node.get_logger().error(f"Falied to set goal: {e}")
+
         #Set json command to None so we don't call the same action server again next time
         self.json_cmd = None
         
-        if(self.active_ac != None and self._goal != None):
-            try:
-                self.active_ac.send_goal(self._goal)
-                self._node.get_logger().info(f"Set goal for {self.active_ac.action_type}.")
-            except Exception as e:
-                self._node.get_logger().error(f"Error sending goal to AC {self.active_ac.action_type} : {e}.")
-
-        #Reset varaibles
-        self.active_ac = None
-        self._goal = None
-
         #Print action client status
         self._node.get_logger().info("------------------")    
         for _ac in self._action_clients:
@@ -165,13 +209,12 @@ class Camera_control_client:
 
     def _set_goal(self, action_client: BTActionClient, goal_dict: dict) -> bool:
         try:
-            self._goal = BaseAction.Goal()
-            self._goal.goal.data = json.dumps(goal_dict)
-            self.active_ac = action_client
-            return True
+            _goal = BaseAction.Goal()
+            _goal.goal.data = json.dumps(goal_dict)
+            return _goal
         except Exception as e:
             self._node.get_logger().info(f"Failed to set goal for {action_client.action_type}: {e}")
-            return False
+            return None
 
 
 def main(args=None, namespace=None):
