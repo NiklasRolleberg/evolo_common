@@ -96,7 +96,7 @@ class SbgJsonPublisher(Node):
         )
 
         data = {
-            "sog": round(sog, 3),
+            "sogkts": round(sog, 3),
             "cog": round(cog, 3),
             "lat": self.latitude,
             "lon": self.longitude,
