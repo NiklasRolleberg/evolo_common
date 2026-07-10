@@ -86,6 +86,8 @@ class MapOdomInitializer(Node):
         # Time used ofr stamping the TF messages
         now = self.get_clock().now().to_msg()
 
+        ### Send Evolo/odom frame transform ###
+
         # Define utm root (includes zone and band) to utm transform
         self.base_transform = TransformStamped()
         self.base_transform.header.stamp = now
@@ -109,8 +111,24 @@ class MapOdomInitializer(Node):
         self.odom_transform.transform.rotation.w = 1.0  # Identity rotation
 
         # Publish the transforms immediately once they are determined
-        self._log(f"Set static transform map → odom at UTM ({easting:.2f}, {northing:.2f}) UTM_{zone}{letter}")
+        self._log(f"Set static transform map → evolo/odom at UTM ({easting:.2f}, {northing:.2f}) UTM_{zone}{letter}")
         self.static_broadcaster.sendTransform([self.base_transform, self.odom_transform])
+
+        ### Send map transform (same as evolo/odom) ###
+
+        # Define map frame transform
+        self.map_transform = TransformStamped()
+        self.map_transform.header.stamp = now
+        self.map_transform.header.frame_id = 'evolo/odom'
+        self.map_transform.child_frame_id = 'map'
+        self.map_transform.transform.translation.x = 0.0
+        self.map_transform.transform.translation.y = 0.0
+        self.map_transform.transform.translation.z = 0.0
+        self.map_transform.transform.rotation.w = 1.0  # Identity rotation
+
+        # Publish the transforms immediately once they are determined
+        self._log(f"Set static transform evolo/odom → map (0,0)")
+        self.static_broadcaster.sendTransform([self.odom_transform, self.map_transform])
 
         self.origin_set = True
 
@@ -127,6 +145,7 @@ class MapOdomInitializer(Node):
             self._log("Broadcasting base and odom transforms")
 
         self.static_broadcaster.sendTransform([self.base_transform, self.odom_transform])
+        self.static_broadcaster.sendTransform([self.odom_transform, self.map_transform])
 
     def _log(self, message):
         self.get_logger().info(message)
