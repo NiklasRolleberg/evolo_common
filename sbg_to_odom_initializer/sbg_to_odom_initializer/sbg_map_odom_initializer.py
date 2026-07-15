@@ -120,7 +120,7 @@ class MapOdomInitializer(Node):
         self.map_transform = TransformStamped()
         self.map_transform.header.stamp = now
         self.map_transform.header.frame_id = 'evolo/odom'
-        self.map_transform.child_frame_id = 'map'
+        self.map_transform.child_frame_id = 'evolo/map'
         self.map_transform.transform.translation.x = 0.0
         self.map_transform.transform.translation.y = 0.0
         self.map_transform.transform.translation.z = 0.0
