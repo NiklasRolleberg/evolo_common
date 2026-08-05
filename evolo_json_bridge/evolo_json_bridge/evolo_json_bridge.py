@@ -92,8 +92,9 @@ class Translator(Node):
 
         #Convert sidescan message and republish
         range = 1500.0 * self.sss_msg.max_duration if self.sss_msg.max_duration != 0 else 100.0
+        frequency = self,self.sss_msg.frequency_id*10 if self.sss_msg.frequency_id != 0 else 200
         json_data = {"range": range,
-                     "frequency":200,
+                     "frequency":frequency,
                      "starboard_channel": [int(i) for i in self.sss_msg.starboard_channel], 
                      "port_channel": [int(i) for i in self.sss_msg.port_channel]}
         

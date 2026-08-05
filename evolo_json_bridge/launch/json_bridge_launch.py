@@ -10,7 +10,7 @@ from smarc_control_msgs.msg import Topics as ControlTopics
 
 
 # topics for translator to publish to 
-status_publish_topic = "/evolo/debug/status"
+status_publish_topic = "waraps/sensor/scientist"
 sidescan_publish_topic = "waraps/sensor/sidescan"
 
 #topics for translator to subscribe to
