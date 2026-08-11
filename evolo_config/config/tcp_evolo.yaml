@@ -43,6 +43,7 @@
       - "/evolo/rviz/cbfHalfplanes"
       - "/evolo/rvizObstacles"
       - "/yolo/dbg_image"
+      - "/evolo/rviz/camera_obstacle"
 
     # Defaults can be overridden for all topics
     #/evolo/sensors/lidar/points:
