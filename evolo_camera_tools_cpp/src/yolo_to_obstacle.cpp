@@ -26,16 +26,19 @@ public:
     this->declare_parameter<bool>("publish_viz", true);
     this->declare_parameter<float>("camera_aperture", 50.0);
     this->declare_parameter<float>("projection_distance", 25);
+    this->declare_parameter<float>("threshold", 0.6);
 
     publish_viz            = this->get_parameter("publish_viz").as_bool();
     camera_aperture        = this->get_parameter("camera_aperture").as_double();
     projection_distance    = this->get_parameter("projection_distance").as_double();
+    detection_threshold    = this->get_parameter("threshold").as_double();
 
 
     RCLCPP_INFO(this->get_logger(), "Parameters:");
     RCLCPP_INFO(this->get_logger(), "  publish_viz = %d", publish_viz);
     RCLCPP_INFO(this->get_logger(), "  camera_aperture = %f", camera_aperture);
     RCLCPP_INFO(this->get_logger(), "  projection_distance = %f", projection_distance);
+    RCLCPP_INFO(this->get_logger(), "  threshold = %f", detection_threshold);
 
     //tf
     tf_buffer_ = std::make_shared<tf2_ros::Buffer>(this->get_clock());
